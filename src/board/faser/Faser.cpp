@@ -20,6 +20,8 @@ Faser::Faser(int pinsParam[SENSORS_COUNT], int sensitivitiesParam[SENSORS_COUNT]
   debug = debugParam;
   lastKeypressTime = 0;
   strncpy(keys, keysParam, 5);
+
+  processCommandCounter = 0;
 }
 
 void Faser::tick()
@@ -34,8 +36,7 @@ void Faser::tick()
     displayDebugTick = debug;
   }
 
-  // TODO
-  // readSerialCommand(displayDebugTick);
+  readSerialCommand(displayDebugTick);
 
   readSensors(currentTime, displayDebugTick);
 
@@ -45,20 +46,84 @@ void Faser::tick()
   updateKeyPresses(currentTime, displayDebugTick);
 }
 
-// TODO implement serial commands to manage sensitivity
+// Read available data
 void Faser::readSerialCommand(bool displayDebugTick)
 {
-  // // If there are commands that needs to processed, process them.
-  // counter = (counter + 1);
-  // if (counter == COMMAND_POLL_RATE)
-  // {
-  //   if (Serial.available() > 0)
-  //   {
-  //     int x = Serial.read();
-  //     processIncomingByte(x);
-  //   }
-  //   counter = 0
-  // }
+  processCommandCounter = (processCommandCounter + 1);
+  if (processCommandCounter == COMMAND_POLL_RATE)
+  {
+    if (Serial.available() > 0)
+    {
+      processIncomingData(Serial.read());
+    }
+    processCommandCounter = 0;
+  }
+}
+
+// Fill in command buffer before sending off to processing
+void Faser::processIncomingData(const byte inByte)
+{
+  // TODO make that a class member?
+  static char inputCommand[MAX_INPUT];
+  static unsigned int inputPosition = 0;
+
+  switch (inByte)
+  {
+  // End of line (command is complete)
+  case '\n':
+    inputCommand[inputPosition] = 0; // Add null terminator
+    processCommand(inputCommand);
+
+    inputPosition = 0;
+    break;
+
+  // Discard carriage returns
+  case '\r':
+    break;
+
+  // Append byte to array unless buffer is already full
+  default:
+    if (inputPosition < (MAX_INPUT - 1))
+    {
+      inputCommand[inputPosition++] = inByte;
+    }
+    break;
+  }
+}
+
+void Faser::processCommand(char *data)
+{
+  // Get the command type based on first byte
+  // The command is based on the ascii keycode value
+  // 48 == 0, 51 == 3...
+  int index = data[0] - 48;
+
+  if (index < SENSORS_COUNT)
+  {
+    data[5] = 0; // Add null byte to limit input value length to 4 numbers
+    sensorsSensitivities[index] = atoi((const char *)&(data[1]));
+  }
+  else
+  {
+    Serial.print("unrecognized command:");
+    Serial.println(index);
+  }
+
+  // Print current sensitivities
+  char sensitivityStringBuf[5];
+
+  Serial.print("sensors_sensitivity;");
+  for (int i = 0; i < SENSORS_COUNT; i++)
+  {
+    sprintf(sensitivityStringBuf, "%4d", sensorsSensitivities[i]);
+
+    Serial.print("sensor");
+    Serial.print(i);
+    Serial.print(":");
+    Serial.print(&(sensitivityStringBuf[0]));
+    Serial.println(";");
+  }
+  Serial.println("");
 }
 
 void Faser::readSensors(unsigned long currentTime, bool displayDebugTick)
@@ -125,6 +190,7 @@ void Faser::dumpSensorValue(int sensorIdx, int value, bool oldState, bool newSta
   char stateChangeStringBuf[33];
   sprintf(stateChangeStringBuf, "%*d", 32, stateChangeTimeDiff);
 
+  Serial.print("sensor_state;");
   Serial.print("sensor:");
   Serial.print(sensorIdx);
   Serial.print(";sensitivity:");
