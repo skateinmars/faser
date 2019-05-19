@@ -16,8 +16,7 @@ const int LOWER_LIMIT_PRESSURE = 1000;        // Minimum value for "unpress" to 
 const int DEFAULT_PRESSURE_SENSITIVITY = 500; // Default sensitivity
 
 // Interval times in micros
-const long DELAY_TIME = 2500;         // Delay is the time between which keyboard command doesn't change
-const long DEBOUNCE_TIME = 10 * 1000; // Debounce is the time between which sensor changes are ignored
+const long DEBOUNCE_TIME = 15 * 1000; // Debounce is the time between which sensor changes are ignored
 const long DEBUG_INTERVAL = 1000000;
 
 const unsigned int COMMAND_POLL_RATE = 10 - 1; // Process Serial commands every n ticks
@@ -36,12 +35,11 @@ private:
   int sensorsSensitivities[SENSORS_COUNT];          // Sensitivity settings
   bool sensorsStates[SENSORS_COUNT];                // Store whether sensor is pressed
   unsigned long lastStateChangeTime[SENSORS_COUNT]; // timestamp for the last time a sensor state was updated
-  unsigned long lastKeypressTime;                   // timestamp for the last time a key command was sent
   unsigned long lastDebugTime;                      // timestamp for the last time a key command was sent
   int processCommandCounter;                        // Ticks counter for command processing
 
   void readSensors(unsigned long currentTime, bool displayDebug);
-  void updateKeyPresses(unsigned long currentTime, bool displayDebug);
+  void updateKeyPress(int sensorIdx, bool isPressed);
   void dumpSensorValue(int sensorIdx, int value, bool oldState, bool newState, unsigned long stateChangeTimeDiff, bool displayDebug);
   void readSerialCommand(bool displayDebugTick);
   void processIncomingData(const byte inByte);
