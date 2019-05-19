@@ -102,7 +102,7 @@ void Faser::processCommand(char *data)
     printSensitivity(index, sensorsSensitivities[index]);
   }
   // 'R'ead sensitivities
-  else if (index == 82)
+  else if (index == 34)
   {
     for (int i = 0; i < SENSORS_COUNT; i++)
     {
@@ -110,7 +110,7 @@ void Faser::processCommand(char *data)
     }
   }
   // 'D'ebounce time value update
-  else if (index == 68)
+  else if (index == 20)
   {
     data[6] = 0; // Add null byte to limit input value length to 5 numbers
     debounceTime = atoi((const char *)&(data[1]));
@@ -118,7 +118,8 @@ void Faser::processCommand(char *data)
   else
   {
     Serial.print("unrecognized_command|code:");
-    Serial.println(index);
+    Serial.print(index);
+    Serial.println(";");
   }
 }
 
@@ -131,7 +132,7 @@ void Faser::printSensitivity(int index, int sensorsSensitivity)
   Serial.print("sensor_sensitivity|");
   Serial.print("sensor:");
   Serial.print(index);
-  Serial.print("sensitivity:");
+  Serial.print(";sensitivity:");
   Serial.print(&(sensitivityStringBuf[0]));
   Serial.println(";");
 }
