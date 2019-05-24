@@ -10,7 +10,6 @@
 
 #define SENSORS_COUNT 4
 
-const int LOWER_LIMIT_PRESSURE = 1000;        // Minimum value for "unpress" to happen
 const int DEFAULT_PRESSURE_SENSITIVITY = 500; // Default sensitivity
 const int MIN_PRESSURE_SENSITIVITY = 300;     // Minimum sensitivity
 

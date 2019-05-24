@@ -179,7 +179,7 @@ void Faser::readSensors(unsigned long currentTime, bool displayDebugTick)
     else
     {
       // Going from pressed to unpressed and debounce interval has passed
-      if (sensorsStates[i] && (previousSensorsValue[i] < LOWER_LIMIT_PRESSURE) && (stateChangeTimeDiff >= debounceTime))
+      if (sensorsStates[i] && (stateChangeTimeDiff >= debounceTime))
       {
         sensorsStates[i] = false;
         lastStateChangeTime[i] = currentTime;
@@ -187,7 +187,7 @@ void Faser::readSensors(unsigned long currentTime, bool displayDebugTick)
 
         dumpSensorValue(i, previousSensorsValue[i], true, false, stateChangeTimeDiff, debug);
       }
-      // Going from pressed to unpressed but debounce interval has not passed/pressure is still above lower limit
+      // Going from pressed to unpressed but debounce interval has not passed
       else if (sensorsStates[i])
       {
         dumpSensorValue(i, previousSensorsValue[i], true, true, stateChangeTimeDiff, debug);
