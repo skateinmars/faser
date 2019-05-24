@@ -10,7 +10,6 @@ Faser::Faser(int pinsParam[SENSORS_COUNT], int sensitivitiesParam[SENSORS_COUNT]
   for (int i = 0; i < SENSORS_COUNT; i++)
   {
     sensorsPins[i] = pinsParam[i];
-    pinMode(sensorsPins[i], INPUT);
 
     sensorsSensitivities[i] = sensitivitiesParam[i];
     sensorsStates[i] = false;
