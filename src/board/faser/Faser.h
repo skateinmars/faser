@@ -18,6 +18,8 @@ const int MIN_PRESSURE_SENSITIVITY = 300;     // Minimum sensitivity
 const long INITIAL_DEBOUNCE_TIME = 15 * 1000;
 const long DEBUG_INTERVAL = 1000000;
 
+const int previousValueWeight = 1; // Weight to apply to previous reading
+
 const unsigned int COMMAND_POLL_RATE = 10 - 1; // Process Serial commands every n ticks
 const unsigned int MAX_INPUT = 10;             // Max number of bytes to accept in a command
 
@@ -32,6 +34,7 @@ private:
   char keys[SENSORS_COUNT + 1];                     // Keyboard keys to press
   int sensorsPins[SENSORS_COUNT];                   // Pins connected to FSR/resistors
   int sensorsSensitivities[SENSORS_COUNT];          // Sensitivity settings
+  int previousSensorsValue[SENSORS_COUNT];          // Previous reading of sensors
   bool sensorsStates[SENSORS_COUNT];                // Store whether sensor is pressed
   unsigned long lastStateChangeTime[SENSORS_COUNT]; // timestamp for the last time a sensor state was updated
   long debounceTime;                                // Debounce is the time between which sensor changes are ignored

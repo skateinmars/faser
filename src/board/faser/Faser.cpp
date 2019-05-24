@@ -14,6 +14,7 @@ Faser::Faser(int pinsParam[SENSORS_COUNT], int sensitivitiesParam[SENSORS_COUNT]
     sensorsSensitivities[i] = sensitivitiesParam[i];
     sensorsStates[i] = false;
     lastStateChangeTime[i] = 0;
+    previousSensorsValue[i] = 0;
   }
 
   debug = debugParam;
@@ -149,11 +150,11 @@ void Faser::readSensors(unsigned long currentTime, bool displayDebugTick)
 {
   for (int i = 0; i < SENSORS_COUNT; i++)
   {
-    int sensorValue = analogRead(sensorsPins[i]);
+    previousSensorsValue[i] = ((previousSensorsValue[i] * previousValueWeight) + analogRead(sensorsPins[i])) / (previousValueWeight + 1);
 
     unsigned long stateChangeTimeDiff = ((unsigned long)(currentTime - lastStateChangeTime[i]));
 
-    if (sensorValue > (sensorsSensitivities[i]))
+    if (previousSensorsValue[i] > (sensorsSensitivities[i]))
     {
       // Going from unpressed to pressed and debounce interval has passed
       if (!sensorsStates[i] && (stateChangeTimeDiff >= debounceTime))
@@ -162,34 +163,34 @@ void Faser::readSensors(unsigned long currentTime, bool displayDebugTick)
         lastStateChangeTime[i] = currentTime;
         updateKeyPress(i, true);
 
-        dumpSensorValue(i, sensorValue, false, true, stateChangeTimeDiff, debug);
+        dumpSensorValue(i, previousSensorsValue[i], false, true, stateChangeTimeDiff, debug);
       }
       // Going from unpressed to pressed but debounce interval has not passed
       else if (!sensorsStates[i])
       {
-        dumpSensorValue(i, sensorValue, false, false, stateChangeTimeDiff, debug);
+        dumpSensorValue(i, previousSensorsValue[i], false, false, stateChangeTimeDiff, debug);
       }
       // Sensor was pressed and is still pressed
       else
       {
-        dumpSensorValue(i, sensorValue, true, true, stateChangeTimeDiff, displayDebugTick);
+        dumpSensorValue(i, previousSensorsValue[i], true, true, stateChangeTimeDiff, displayDebugTick);
       }
     }
     else
     {
       // Going from pressed to unpressed and debounce interval has passed
-      if (sensorsStates[i] && (sensorValue < LOWER_LIMIT_PRESSURE) && (stateChangeTimeDiff >= debounceTime))
+      if (sensorsStates[i] && (previousSensorsValue[i] < LOWER_LIMIT_PRESSURE) && (stateChangeTimeDiff >= debounceTime))
       {
         sensorsStates[i] = false;
         lastStateChangeTime[i] = currentTime;
         updateKeyPress(i, false);
 
-        dumpSensorValue(i, sensorValue, true, false, stateChangeTimeDiff, debug);
+        dumpSensorValue(i, previousSensorsValue[i], true, false, stateChangeTimeDiff, debug);
       }
       // Going from pressed to unpressed but debounce interval has not passed/pressure is still above lower limit
       else if (sensorsStates[i])
       {
-        dumpSensorValue(i, sensorValue, true, true, stateChangeTimeDiff, debug);
+        dumpSensorValue(i, previousSensorsValue[i], true, true, stateChangeTimeDiff, debug);
       }
     }
   }
