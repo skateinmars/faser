@@ -18,8 +18,9 @@ Faser::Faser(int pinsParam[SENSORS_COUNT], int sensitivitiesParam[SENSORS_COUNT]
   }
 
   debug = debugParam;
-  lastKeypressTime = 0;
   strncpy(keys, keysParam, 5);
+
+  debounceTime = INITIAL_DEBOUNCE_TIME;
 
   processCommandCounter = 0;
 }
@@ -39,11 +40,6 @@ void Faser::tick()
   readSerialCommand(displayDebugTick);
 
   readSensors(currentTime, displayDebugTick);
-
-  // Refresh current time
-  currentTime = micros();
-
-  updateKeyPresses(currentTime, displayDebugTick);
 }
 
 // Read available data
@@ -102,28 +98,43 @@ void Faser::processCommand(char *data)
   {
     data[5] = 0; // Add null byte to limit input value length to 4 numbers
     sensorsSensitivities[index] = atoi((const char *)&(data[1]));
+
+    printSensitivity(index, sensorsSensitivities[index]);
+  }
+  // 'R'ead sensitivities
+  else if (index == 34)
+  {
+    for (int i = 0; i < SENSORS_COUNT; i++)
+    {
+      printSensitivity(i, sensorsSensitivities[i]);
+    }
+  }
+  // 'D'ebounce time value update
+  else if (index == 20)
+  {
+    data[6] = 0; // Add null byte to limit input value length to 5 numbers
+    debounceTime = atoi((const char *)&(data[1]));
   }
   else
   {
-    Serial.print("unrecognized command:");
-    Serial.println(index);
-  }
-
-  // Print current sensitivities
-  char sensitivityStringBuf[5];
-
-  Serial.print("sensors_sensitivity;");
-  for (int i = 0; i < SENSORS_COUNT; i++)
-  {
-    sprintf(sensitivityStringBuf, "%4d", sensorsSensitivities[i]);
-
-    Serial.print("sensor");
-    Serial.print(i);
-    Serial.print(":");
-    Serial.print(&(sensitivityStringBuf[0]));
+    Serial.print("unrecognized_command|code:");
+    Serial.print(index);
     Serial.println(";");
   }
-  Serial.println("");
+}
+
+void Faser::printSensitivity(int index, int sensorsSensitivity)
+{
+  // Print current sensitivity
+  char sensitivityStringBuf[5];
+  sprintf(sensitivityStringBuf, "%4d", sensorsSensitivity);
+
+  Serial.print("sensor_sensitivity|");
+  Serial.print("sensor:");
+  Serial.print(index);
+  Serial.print(";sensitivity:");
+  Serial.print(&(sensitivityStringBuf[0]));
+  Serial.println(";");
 }
 
 void Faser::readSensors(unsigned long currentTime, bool displayDebugTick)
@@ -137,10 +148,11 @@ void Faser::readSensors(unsigned long currentTime, bool displayDebugTick)
     if (sensorValue > (sensorsSensitivities[i]))
     {
       // Going from unpressed to pressed and debounce interval has passed
-      if (!sensorsStates[i] && (stateChangeTimeDiff >= DEBOUNCE_TIME))
+      if (!sensorsStates[i] && (stateChangeTimeDiff >= debounceTime))
       {
         sensorsStates[i] = true;
         lastStateChangeTime[i] = currentTime;
+        updateKeyPress(i, true);
 
         dumpSensorValue(i, sensorValue, false, true, stateChangeTimeDiff, debug);
       }
@@ -158,10 +170,11 @@ void Faser::readSensors(unsigned long currentTime, bool displayDebugTick)
     else
     {
       // Going from pressed to unpressed and debounce interval has passed
-      if (sensorsStates[i] && (sensorValue < LOWER_LIMIT_PRESSURE) && (stateChangeTimeDiff >= DEBOUNCE_TIME))
+      if (sensorsStates[i] && (sensorValue < LOWER_LIMIT_PRESSURE) && (stateChangeTimeDiff >= debounceTime))
       {
         sensorsStates[i] = false;
         lastStateChangeTime[i] = currentTime;
+        updateKeyPress(i, false);
 
         dumpSensorValue(i, sensorValue, true, false, stateChangeTimeDiff, debug);
       }
@@ -187,10 +200,10 @@ void Faser::dumpSensorValue(int sensorIdx, int value, bool oldState, bool newSta
   char valueStringBuf[5];
   sprintf(valueStringBuf, "%4d", value);
 
-  char stateChangeStringBuf[33];
-  sprintf(stateChangeStringBuf, "%*d", 32, stateChangeTimeDiff);
+  // char stateChangeStringBuf[33];
+  // sprintf(stateChangeStringBuf, "%*d", 32, stateChangeTimeDiff);
 
-  Serial.print("sensor_state;");
+  Serial.print("sensor_state|");
   Serial.print("sensor:");
   Serial.print(sensorIdx);
   Serial.print(";sensitivity:");
@@ -202,28 +215,18 @@ void Faser::dumpSensorValue(int sensorIdx, int value, bool oldState, bool newSta
   Serial.print(";new_state:");
   Serial.print(newState);
   Serial.print(";state_change_time_diff:");
-  Serial.print(&(stateChangeStringBuf[0]));
+  Serial.print(stateChangeTimeDiff);
   Serial.println("");
 }
 
-void Faser::updateKeyPresses(unsigned long currentTime, bool _displayDebugTick)
+void Faser::updateKeyPress(int sensorIdx, bool isPressed)
 {
-  unsigned long keypressChangeTimeDiffInMs = (unsigned long)(currentTime - lastKeypressTime);
-
-  if (keypressChangeTimeDiffInMs > (double)(DELAY_TIME))
+  if (isPressed)
   {
-    for (int i = 0; i < SENSORS_COUNT; i++)
-    {
-      if (sensorsStates[i])
-      {
-        Keyboard.press(keys[i]);
-      }
-      else
-      {
-        Keyboard.release(keys[i]);
-      }
-    }
-
-    lastKeypressTime = currentTime;
+    Keyboard.press(keys[sensorIdx]);
+  }
+  else
+  {
+    Keyboard.release(keys[sensorIdx]);
   }
 }
