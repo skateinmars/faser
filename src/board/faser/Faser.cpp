@@ -99,6 +99,11 @@ void Faser::processCommand(char *data)
     data[5] = 0; // Add null byte to limit input value length to 4 numbers
     sensorsSensitivities[index] = atoi((const char *)&(data[1]));
 
+    if (sensorsSensitivities[index] < MIN_PRESSURE_SENSITIVITY)
+    {
+      sensorsSensitivities[index] = MIN_PRESSURE_SENSITIVITY;
+    }
+
     printSensitivity(index, sensorsSensitivities[index]);
   }
   // 'R'ead sensitivities
@@ -113,7 +118,11 @@ void Faser::processCommand(char *data)
   else if (index == 20)
   {
     data[6] = 0; // Add null byte to limit input value length to 5 numbers
-    debounceTime = atoi((const char *)&(data[1]));
+    debounceTime = atol((const char *)&(data[1]));
+    if (debounceTime < 0)
+    {
+      debounceTime = INITIAL_DEBOUNCE_TIME;
+    }
   }
   else
   {
