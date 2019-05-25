@@ -14,7 +14,7 @@ Faser::Faser(int pinsParam[SENSORS_COUNT], int sensitivitiesParam[SENSORS_COUNT]
     sensorsSensitivities[i] = sensitivitiesParam[i];
     sensorsStates[i] = false;
     lastStateChangeTime[i] = 0;
-    previousSensorsValue[i] = 0;
+    previousSensorsValue[i].begin(SMOOTHED_EXPONENTIAL, 10);
   }
 
   debug = debugParam;
@@ -150,11 +150,11 @@ void Faser::readSensors(unsigned long currentTime, bool displayDebugTick)
 {
   for (int i = 0; i < SENSORS_COUNT; i++)
   {
-    previousSensorsValue[i] = ((previousSensorsValue[i] * previousValueWeight) + analogRead(sensorsPins[i])) / (previousValueWeight + 1);
+    previousSensorsValue[i].add(analogRead(sensorsPins[i]));
 
     unsigned long stateChangeTimeDiff = ((unsigned long)(currentTime - lastStateChangeTime[i]));
 
-    if (previousSensorsValue[i] > (sensorsSensitivities[i]))
+    if (previousSensorsValue[i].get() > (sensorsSensitivities[i]))
     {
       // Going from unpressed to pressed and debounce interval has passed
       if (!sensorsStates[i] && (stateChangeTimeDiff >= debounceTime))
@@ -163,17 +163,17 @@ void Faser::readSensors(unsigned long currentTime, bool displayDebugTick)
         lastStateChangeTime[i] = currentTime;
         updateKeyPress(i, true);
 
-        dumpSensorValue(i, previousSensorsValue[i], false, true, stateChangeTimeDiff, debug);
+        dumpSensorValue(i, previousSensorsValue[i].getLast(), previousSensorsValue[i].get(), false, true, stateChangeTimeDiff, debug);
       }
       // Going from unpressed to pressed but debounce interval has not passed
       else if (!sensorsStates[i])
       {
-        dumpSensorValue(i, previousSensorsValue[i], false, false, stateChangeTimeDiff, debug);
+        dumpSensorValue(i, previousSensorsValue[i].getLast(), previousSensorsValue[i].get(), false, false, stateChangeTimeDiff, debug);
       }
       // Sensor was pressed and is still pressed
       else
       {
-        dumpSensorValue(i, previousSensorsValue[i], true, true, stateChangeTimeDiff, displayDebugTick);
+        dumpSensorValue(i, previousSensorsValue[i].getLast(), previousSensorsValue[i].get(), true, true, stateChangeTimeDiff, displayDebugTick);
       }
     }
     else
@@ -185,18 +185,18 @@ void Faser::readSensors(unsigned long currentTime, bool displayDebugTick)
         lastStateChangeTime[i] = currentTime;
         updateKeyPress(i, false);
 
-        dumpSensorValue(i, previousSensorsValue[i], true, false, stateChangeTimeDiff, debug);
+        dumpSensorValue(i, previousSensorsValue[i].getLast(), previousSensorsValue[i].get(), true, false, stateChangeTimeDiff, debug);
       }
       // Going from pressed to unpressed but debounce interval has not passed
       else if (sensorsStates[i])
       {
-        dumpSensorValue(i, previousSensorsValue[i], true, true, stateChangeTimeDiff, debug);
+        dumpSensorValue(i, previousSensorsValue[i].getLast(), previousSensorsValue[i].get(), true, true, stateChangeTimeDiff, debug);
       }
     }
   }
 }
 
-void Faser::dumpSensorValue(int sensorIdx, int value, bool oldState, bool newState, unsigned long stateChangeTimeDiff, bool displayDebug)
+void Faser::dumpSensorValue(int sensorIdx, int rawValue, int smoothedValue, bool oldState, bool newState, unsigned long stateChangeTimeDiff, bool displayDebug)
 {
   if (!displayDebug)
   {
@@ -206,19 +206,20 @@ void Faser::dumpSensorValue(int sensorIdx, int value, bool oldState, bool newSta
   // ensure fixed length of output
   char sensitivityStringBuf[5];
   sprintf(sensitivityStringBuf, "%4d", sensorsSensitivities[sensorIdx]);
-  char valueStringBuf[5];
-  sprintf(valueStringBuf, "%4d", value);
-
-  // char stateChangeStringBuf[33];
-  // sprintf(stateChangeStringBuf, "%*d", 32, stateChangeTimeDiff);
+  char rawValueStringBuf[5];
+  sprintf(rawValueStringBuf, "%4d", rawValue);
+  char smoothedValueStringBuf[5];
+  sprintf(smoothedValueStringBuf, "%4d", smoothedValue);
 
   Serial.print("sensor_state|");
   Serial.print("sensor:");
   Serial.print(sensorIdx);
   Serial.print(";sensitivity:");
   Serial.print(&(sensitivityStringBuf[0]));
-  Serial.print(";value:");
-  Serial.print(&(valueStringBuf[0]));
+  Serial.print(";raw_value:");
+  Serial.print(&(rawValueStringBuf[0]));
+  Serial.print(";smoothed_value:");
+  Serial.print(&(smoothedValueStringBuf[0]));
   Serial.print(";previous_state:");
   Serial.print(oldState);
   Serial.print(";new_state:");
