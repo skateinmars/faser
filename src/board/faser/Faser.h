@@ -14,6 +14,8 @@
 const int DEFAULT_PRESSURE_SENSITIVITY = 500; // Default sensitivity
 const int MIN_PRESSURE_SENSITIVITY = 300;     // Minimum sensitivity
 
+const int sensorSensitivityDebugThreshold = 10; // Apply this threshold when logging values
+
 // Interval times in micros
 const long INITIAL_DEBOUNCE_TIME = 15 * 1000;
 const long DEBUG_INTERVAL = 1000000;

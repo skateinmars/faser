@@ -192,6 +192,11 @@ void Faser::readSensors(unsigned long currentTime, bool displayDebugTick)
       {
         dumpSensorValue(i, previousSensorsValue[i].getLast(), previousSensorsValue[i].get(), true, true, stateChangeTimeDiff, debug);
       }
+      // Is unpressed, so log only if value is close to limit to avoid flooding
+      else if (previousSensorsValue[i].getLast() > (sensorsSensitivities[i] - sensorSensitivityDebugThreshold))
+      {
+        dumpSensorValue(i, previousSensorsValue[i].getLast(), previousSensorsValue[i].get(), false, false, stateChangeTimeDiff, debug);
+      }
     }
   }
 }
