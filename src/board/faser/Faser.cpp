@@ -123,6 +123,15 @@ void Faser::processCommand(char *data)
     {
       debounceTime = INITIAL_DEBOUNCE_TIME;
     }
+
+    // Print updated debounce value
+    char debounceStringBuf[6];
+    sprintf(debounceStringBuf, "%5ld", debounceTime);
+
+    Serial.print("debounce_time|");
+    Serial.print("debounce:");
+    Serial.print(&(debounceStringBuf[0]));
+    Serial.println(";");
   }
   else
   {
