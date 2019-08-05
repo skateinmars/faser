@@ -14,7 +14,7 @@ Faser::Faser(int pinsParam[SENSORS_COUNT], int sensitivitiesParam[SENSORS_COUNT]
     sensorsSensitivities[i] = sensitivitiesParam[i];
     sensorsStates[i] = false;
     lastStateChangeTime[i] = 0;
-    previousSensorsValue[i].begin(SMOOTHED_EXPONENTIAL, 17);
+    previousSensorsValue[i].begin(SMOOTHED_EXPONENTIAL, 40);
   }
 
   debug = debugParam;
