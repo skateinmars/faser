@@ -18,7 +18,7 @@ Faser::Faser(int pinsParam[SENSORS_COUNT], int sensitivitiesParam[SENSORS_COUNT]
   }
 
   debug = debugParam;
-  strncpy(keys, keysParam, 5);
+  strncpy(keys, keysParam, SENSORS_COUNT);
 
   debounceTime = INITIAL_DEBOUNCE_TIME;
 
