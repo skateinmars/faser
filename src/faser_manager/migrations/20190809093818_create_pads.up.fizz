@@ -1,0 +1,7 @@
+create_table("pads") {
+	t.Column("id", "uuid", {primary: true})
+	t.Column("name", "string", {})
+	t.Column("port", "string", {})
+	t.Column("player_id", "uuid", {null: true})
+	t.Timestamps()
+}

@@ -1,0 +1,18 @@
+<div class="page-header">
+    <h1>Available pads:</h1>
+
+    <!--<h1>
+        Pads
+
+        <%= linkTo(newPadsPath(), {class: "btn btn-primary"}) { %>
+        New Pad
+        <% } %>
+
+    </h1>-->
+</div>
+
+<div class="list-group">
+    <%= for (pad) in pads { %>
+    <%= linkTo(padPath({ pad_id: pad.ID }), {class: "list-group-item list-group-item-action", body: pad.Name}) %>
+    <% } %>
+</div>

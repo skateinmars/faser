@@ -1,0 +1,11 @@
+development:
+  dialect: "sqlite3"
+  database: ./faser_manager_faser_manager_development.sqlite
+
+test:
+  dialect: "sqlite3"
+  database: ./faser_manager_faser_manager_test.sqlite
+
+production:
+  dialect: "sqlite3"
+  database: ./faser_manager_faser_manager_production.sqlite

@@ -1,0 +1,6 @@
+- id: "pad.created.success"
+  translation: "Pad was successfully created."
+- id: "pad.updated.success"
+  translation: "Pad was successfully updated."
+- id: "pad.destroyed.success"
+  translation: "Pad was successfully destroyed."

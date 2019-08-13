@@ -1,0 +1,8 @@
+<div class="page-header">
+  <h1>New Pad</h1>
+</div>
+
+<%= formFor(pad, {action: padsPath(), method: "POST"}) { %>
+  <%= partial("pads/form.html") %>
+  <%= linkTo(padsPath(), {class: "btn btn-warning", "data-confirm": "Are you sure?", body: "Cancel"}) %>
+<% } %>
