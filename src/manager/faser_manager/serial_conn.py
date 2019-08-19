@@ -1,7 +1,8 @@
 import serial
+import os
 
 class SerialConn:
-    device = "/dev/ttyACM0"
+    device = os.environ['TTY']
     timeout = 1
 
     def __init__(self):
