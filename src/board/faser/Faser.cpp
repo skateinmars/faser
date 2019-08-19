@@ -5,7 +5,7 @@
 #include "Arduino.h"
 #include "Faser.h"
 
-Faser::Faser(int pinsParam[SENSORS_COUNT], int sensitivitiesParam[SENSORS_COUNT], char keysParam[SENSORS_COUNT + 1], bool debugParam)
+Faser::Faser(int pinsParam[SENSORS_COUNT], int sensitivitiesParam[SENSORS_COUNT], bool debugParam)
 {
   for (int i = 0; i < SENSORS_COUNT; i++)
   {
@@ -18,11 +18,18 @@ Faser::Faser(int pinsParam[SENSORS_COUNT], int sensitivitiesParam[SENSORS_COUNT]
   }
 
   debug = debugParam;
-  strncpy(keys, keysParam, SENSORS_COUNT);
 
   debounceTime = INITIAL_DEBOUNCE_TIME;
 
   processCommandCounter = 0;
+
+  Joystick = Joystick_(JOYSTICK_DEFAULT_REPORT_ID, JOYSTICK_TYPE_GAMEPAD,
+                       SENSORS_COUNT, 0,     // Button Count, Hat Switch Count
+                       false, false, false,  // No Axes
+                       false, false, false,  // No Rx, Ry, or Rz
+                       false, false,         // No rudder or throttle
+                       false, false, false); // No accelerator, brake, or steering
+  Joystick.begin();
 }
 
 void Faser::tick()
@@ -170,7 +177,7 @@ void Faser::readSensors(unsigned long currentTime, bool displayDebugTick)
       {
         sensorsStates[i] = true;
         lastStateChangeTime[i] = currentTime;
-        updateKeyPress(i, true);
+        updateButtonPress(i, true);
 
         dumpSensorValue(i, previousSensorsValue[i].getLast(), previousSensorsValue[i].get(), false, true, stateChangeTimeDiff, debug);
       }
@@ -192,7 +199,7 @@ void Faser::readSensors(unsigned long currentTime, bool displayDebugTick)
       {
         sensorsStates[i] = false;
         lastStateChangeTime[i] = currentTime;
-        updateKeyPress(i, false);
+        updateButtonPress(i, false);
 
         dumpSensorValue(i, previousSensorsValue[i].getLast(), previousSensorsValue[i].get(), true, false, stateChangeTimeDiff, debug);
       }
@@ -243,14 +250,14 @@ void Faser::dumpSensorValue(int sensorIdx, int rawValue, int smoothedValue, bool
   Serial.println("");
 }
 
-void Faser::updateKeyPress(int sensorIdx, bool isPressed)
+void Faser::updateButtonPress(int sensorIdx, bool isPressed)
 {
   if (isPressed)
   {
-    Keyboard.press(keys[sensorIdx]);
+    Joystick.setButton(sensorIdx, 1);
   }
   else
   {
-    Keyboard.release(keys[sensorIdx]);
+    Joystick.setButton(sensorIdx, 0);
   }
 }
