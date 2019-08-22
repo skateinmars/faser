@@ -5,7 +5,7 @@
 #include "Arduino.h"
 #include "Faser.h"
 
-Faser::Faser(int pinsParam[SENSORS_COUNT], int sensitivitiesParam[SENSORS_COUNT], bool debugParam)
+Faser::Faser(int pinsParam[SENSORS_COUNT], int sensitivitiesParam[SENSORS_COUNT], uint8_t reportId, bool debugParam)
 {
   for (int i = 0; i < SENSORS_COUNT; i++)
   {
@@ -23,12 +23,14 @@ Faser::Faser(int pinsParam[SENSORS_COUNT], int sensitivitiesParam[SENSORS_COUNT]
 
   processCommandCounter = 0;
 
-  Joystick = Joystick_(JOYSTICK_DEFAULT_REPORT_ID, JOYSTICK_TYPE_GAMEPAD,
-                       SENSORS_COUNT, 0,     // Button Count, Hat Switch Count
-                       false, false, false,  // No Axes
-                       false, false, false,  // No Rx, Ry, or Rz
-                       false, false,         // No rudder or throttle
-                       false, false, false); // No accelerator, brake, or steering
+  uint8_t buttonsCount = SENSORS_COUNT;
+  uint8_t hatsCount = 0;
+  Joystick = Joystick_(reportId, JOYSTICK_TYPE_GAMEPAD,
+                       buttonsCount, hatsCount,       // Button Count, Hat Switch Count
+                       false, false, false,     // Axes
+                       false, false, false,   // No Rx, Ry, or Rz
+                       false, false,          // No rudder or throttle
+                       false, false, false);  // No accelerator, brake, or steering
   Joystick.begin();
 }
 

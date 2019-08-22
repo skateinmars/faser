@@ -28,7 +28,7 @@ const unsigned int MAX_INPUT = 10;             // Max number of bytes to accept 
 class Faser
 {
 public:
-  Faser(int pinsParam[SENSORS_COUNT], int sensitivitiesParam[SENSORS_COUNT], bool debugParam);
+  Faser(int pinsParam[SENSORS_COUNT], int sensitivitiesParam[SENSORS_COUNT], uint8_t reportId, bool debugParam);
   void tick();
 
 private:
