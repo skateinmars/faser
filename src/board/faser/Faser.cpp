@@ -5,7 +5,7 @@
 #include "Arduino.h"
 #include "Faser.h"
 
-Faser::Faser(int pinsParam[SENSORS_COUNT], int sensitivitiesParam[SENSORS_COUNT], char keysParam[SENSORS_COUNT + 1], bool debugParam)
+Faser::Faser(int pinsParam[SENSORS_COUNT], int sensitivityChangeThresholdParam, int sensitivitiesParam[SENSORS_COUNT], char keysParam[SENSORS_COUNT + 1], bool debugParam)
 {
   for (int i = 0; i < SENSORS_COUNT; i++)
   {
@@ -14,7 +14,9 @@ Faser::Faser(int pinsParam[SENSORS_COUNT], int sensitivitiesParam[SENSORS_COUNT]
     sensorsSensitivities[i] = sensitivitiesParam[i];
     sensorsStates[i] = false;
     lastStateChangeTime[i] = 0;
-    previousSensorsValue[i].begin(SMOOTHED_EXPONENTIAL, 40);
+    activeSensorsValue[i].begin(SMOOTHED_EXPONENTIAL, 40);
+    initialSensitivities[i] = 0;
+    previousSensorsValue[i] = 0;
   }
 
   debug = debugParam;
@@ -23,6 +25,8 @@ Faser::Faser(int pinsParam[SENSORS_COUNT], int sensitivitiesParam[SENSORS_COUNT]
   debounceTime = INITIAL_DEBOUNCE_TIME;
 
   processCommandCounter = 0;
+
+  sensitivityChangeThreshold = sensitivityChangeThresholdParam;
 }
 
 void Faser::tick()
@@ -104,6 +108,8 @@ void Faser::processCommand(char *data)
       sensorsSensitivities[index] = MIN_PRESSURE_SENSITIVITY;
     }
 
+    initialSensitivities[index] = 0; // Also reset initial sensitivity
+
     printSensitivity(index, sensorsSensitivities[index]);
   }
   // 'R'ead sensitivities
@@ -159,52 +165,100 @@ void Faser::readSensors(unsigned long currentTime, bool displayDebugTick)
 {
   for (int i = 0; i < SENSORS_COUNT; i++)
   {
-    previousSensorsValue[i].add(analogRead(sensorsPins[i]));
+    activeSensorsValue[i].add(analogRead(sensorsPins[i]));
+    int activeValue = activeSensorsValue[i].get();
 
     unsigned long stateChangeTimeDiff = ((unsigned long)(currentTime - lastStateChangeTime[i]));
 
-    if (previousSensorsValue[i].get() > (sensorsSensitivities[i]))
+    // Set initial sensitivity value
+    if (initialSensitivities[i] == 0)
     {
-      // Going from unpressed to pressed and debounce interval has passed
-      if (!sensorsStates[i] && (stateChangeTimeDiff >= debounceTime))
-      {
-        sensorsStates[i] = true;
-        lastStateChangeTime[i] = currentTime;
-        updateKeyPress(i, true);
+      initialSensitivities[i] = activeValue - 50; // 50 less so sensor can "go back" to a value close but higher than initial one
+      previousSensorsValue[i] = activeValue;
+      return;
+    }
 
-        dumpSensorValue(i, previousSensorsValue[i].getLast(), previousSensorsValue[i].get(), false, true, stateChangeTimeDiff, debug);
-      }
-      // Going from unpressed to pressed but debounce interval has not passed
-      else if (!sensorsStates[i])
+    if (activeValue > initialSensitivities[i])
+    {
+      bool isMovingToUp = false;
+      bool isMovingToDown = false;
+
+      if (activeValue > (previousSensorsValue[i] + sensitivityChangeThreshold))
       {
-        dumpSensorValue(i, previousSensorsValue[i].getLast(), previousSensorsValue[i].get(), false, false, stateChangeTimeDiff, debug);
+        isMovingToUp = true;
+        previousSensorsValue[i] = activeValue;
       }
-      // Sensor was pressed and is still pressed
-      else
+      else if (activeValue < (previousSensorsValue[i] - sensitivityChangeThreshold))
       {
-        dumpSensorValue(i, previousSensorsValue[i].getLast(), previousSensorsValue[i].get(), true, true, stateChangeTimeDiff, displayDebugTick);
+        isMovingToDown = true;
+        previousSensorsValue[i] = activeValue;
+      }
+
+      if (isMovingToUp)
+      {
+        // Going from unpressed to pressed
+        if (!sensorsStates[i])
+        {
+          sensorsStates[i] = true;
+          lastStateChangeTime[i] = currentTime;
+          updateKeyPress(i, true);
+
+          dumpSensorValue(i, activeSensorsValue[i].getLast(), activeValue, false, true, stateChangeTimeDiff, debug);
+        }
+        // Sensor was pressed and is still pressed
+        else
+        {
+          dumpSensorValue(i, activeSensorsValue[i].getLast(), activeValue, true, true, stateChangeTimeDiff, displayDebugTick);
+        }
+
+        previousSensorsValue[i] = activeValue;
+      }
+      else if (isMovingToDown)
+      {
+        // Going from pressed to unpressed
+        if (sensorsStates[i])
+        {
+          sensorsStates[i] = false;
+          lastStateChangeTime[i] = currentTime;
+          updateKeyPress(i, false);
+
+          dumpSensorValue(i, activeSensorsValue[i].getLast(), activeValue, true, false, stateChangeTimeDiff, debug);
+        }
+        // Is unpressed, so log only if value is close to limit to avoid flooding
+        else if (activeSensorsValue[i].getLast() > (sensorsSensitivities[i] - sensorSensitivityDebugThreshold))
+        {
+          dumpSensorValue(i, activeSensorsValue[i].getLast(), activeValue, false, false, stateChangeTimeDiff, debug);
+        }
+
+        previousSensorsValue[i] = activeValue;
+      }
+      else if (sensorsStates[i] && activeValue > previousSensorsValue[i])
+      {
+        // Highest value is the new normal
+        previousSensorsValue[i] = activeValue;
+      }
+      else if (!sensorsStates[i] && activeValue < previousSensorsValue[i])
+      {
+        // Lowest value is the new normal
+        previousSensorsValue[i] = activeValue;
       }
     }
     else
     {
-      // Going from pressed to unpressed and debounce interval has passed
-      if (sensorsStates[i] && (stateChangeTimeDiff >= debounceTime))
+      // Going from pressed to unpressed
+      if (sensorsStates[i])
       {
         sensorsStates[i] = false;
         lastStateChangeTime[i] = currentTime;
         updateKeyPress(i, false);
+        previousSensorsValue[i] = initialSensitivities[i]; // Reset
 
-        dumpSensorValue(i, previousSensorsValue[i].getLast(), previousSensorsValue[i].get(), true, false, stateChangeTimeDiff, debug);
-      }
-      // Going from pressed to unpressed but debounce interval has not passed
-      else if (sensorsStates[i])
-      {
-        dumpSensorValue(i, previousSensorsValue[i].getLast(), previousSensorsValue[i].get(), true, true, stateChangeTimeDiff, debug);
+        dumpSensorValue(i, activeSensorsValue[i].getLast(), activeValue, true, false, stateChangeTimeDiff, debug);
       }
       // Is unpressed, so log only if value is close to limit to avoid flooding
-      else if (previousSensorsValue[i].getLast() > (sensorsSensitivities[i] - sensorSensitivityDebugThreshold))
+      else if (activeSensorsValue[i].getLast() > (sensorsSensitivities[i] - sensorSensitivityDebugThreshold))
       {
-        dumpSensorValue(i, previousSensorsValue[i].getLast(), previousSensorsValue[i].get(), false, false, stateChangeTimeDiff, debug);
+        dumpSensorValue(i, activeSensorsValue[i].getLast(), activeValue, false, false, stateChangeTimeDiff, debug);
       }
     }
   }
