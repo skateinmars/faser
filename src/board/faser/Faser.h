@@ -12,7 +12,7 @@
 #define SENSORS_COUNT 4
 
 const int DEFAULT_PRESSURE_SENSITIVITY = 500; // Default sensitivity
-const int MIN_PRESSURE_SENSITIVITY = 300;     // Minimum sensitivity
+const int MIN_PRESSURE_SENSITIVITY = 50;     // Minimum sensitivity
 
 const int sensorSensitivityDebugThreshold = 10; // Apply this threshold when logging values
 
@@ -48,7 +48,7 @@ private:
 
   void readSensors(unsigned long currentTime, bool displayDebug);
   void updateKeyPress(int sensorIdx, bool isPressed);
-  void dumpSensorValue(int sensorIdx, int rawValue, int smoothedValue, bool oldState, bool newState, unsigned long stateChangeTimeDiff, bool displayDebug);
+  void dumpSensorValue(int sensorIdx, int previousValue, int rawValue, int smoothedValue, bool oldState, bool newState, unsigned long stateChangeTimeDiff, bool displayDebug);
   void readSerialCommand(bool displayDebugTick);
   void printSensitivity(int index, int sensorsSensitivity);
   void processIncomingData(const byte inByte);

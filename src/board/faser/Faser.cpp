@@ -14,7 +14,7 @@ Faser::Faser(int pinsParam[SENSORS_COUNT], int sensitivityChangeThresholdParam, 
     sensorsSensitivities[i] = sensitivitiesParam[i];
     sensorsStates[i] = false;
     lastStateChangeTime[i] = 0;
-    activeSensorsValue[i].begin(SMOOTHED_EXPONENTIAL, 40);
+    activeSensorsValue[i].begin(SMOOTHED_EXPONENTIAL, 10);
     initialSensitivities[i] = 0;
     previousSensorsValue[i] = 0;
   }
@@ -26,7 +26,7 @@ Faser::Faser(int pinsParam[SENSORS_COUNT], int sensitivityChangeThresholdParam, 
 
   processCommandCounter = 0;
 
-  sensitivityChangeThreshold = sensitivityChangeThresholdParam;
+  // sensitivityChangeThreshold = sensitivityChangeThresholdParam;
 }
 
 void Faser::tick()
@@ -117,7 +117,7 @@ void Faser::processCommand(char *data)
   {
     for (int i = 0; i < SENSORS_COUNT; i++)
     {
-      printSensitivity(i, sensorsSensitivities[i]);
+      dumpSensorValue(i, previousSensorsValue[i], activeSensorsValue[i].getLast(), activeSensorsValue[i].get(), sensorsStates[i], sensorsStates[i], lastStateChangeTime[i], true);
     }
   }
   // 'D'ebounce time value update
@@ -178,20 +178,18 @@ void Faser::readSensors(unsigned long currentTime, bool displayDebugTick)
       return;
     }
 
-    if (activeValue > initialSensitivities[i])
+    if (activeValue > initialSensitivities[i] + sensorsSensitivities[i])
     {
       bool isMovingToUp = false;
       bool isMovingToDown = false;
 
-      if (activeValue > (previousSensorsValue[i] + sensitivityChangeThreshold))
+      if (activeValue > (previousSensorsValue[i] + sensorsSensitivities[i]))
       {
         isMovingToUp = true;
-        previousSensorsValue[i] = activeValue;
       }
-      else if (activeValue < (previousSensorsValue[i] - sensitivityChangeThreshold))
+      else if (activeValue < (previousSensorsValue[i] - sensorsSensitivities[i]))
       {
         isMovingToDown = true;
-        previousSensorsValue[i] = activeValue;
       }
 
       if (isMovingToUp)
@@ -203,12 +201,12 @@ void Faser::readSensors(unsigned long currentTime, bool displayDebugTick)
           lastStateChangeTime[i] = currentTime;
           updateKeyPress(i, true);
 
-          dumpSensorValue(i, activeSensorsValue[i].getLast(), activeValue, false, true, stateChangeTimeDiff, debug);
+          dumpSensorValue(i, previousSensorsValue[i], activeSensorsValue[i].getLast(), activeValue, false, true, stateChangeTimeDiff, debug);
         }
         // Sensor was pressed and is still pressed
         else
         {
-          dumpSensorValue(i, activeSensorsValue[i].getLast(), activeValue, true, true, stateChangeTimeDiff, displayDebugTick);
+          dumpSensorValue(i, previousSensorsValue[i], activeSensorsValue[i].getLast(), activeValue, true, true, stateChangeTimeDiff, displayDebugTick);
         }
 
         previousSensorsValue[i] = activeValue;
@@ -222,25 +220,30 @@ void Faser::readSensors(unsigned long currentTime, bool displayDebugTick)
           lastStateChangeTime[i] = currentTime;
           updateKeyPress(i, false);
 
-          dumpSensorValue(i, activeSensorsValue[i].getLast(), activeValue, true, false, stateChangeTimeDiff, debug);
+          dumpSensorValue(i, previousSensorsValue[i], activeSensorsValue[i].getLast(), activeValue, true, false, stateChangeTimeDiff, debug);
         }
-        // Is unpressed, so log only if value is close to limit to avoid flooding
-        else if (activeSensorsValue[i].getLast() > (sensorsSensitivities[i] - sensorSensitivityDebugThreshold))
+        else
         {
-          dumpSensorValue(i, activeSensorsValue[i].getLast(), activeValue, false, false, stateChangeTimeDiff, debug);
+          dumpSensorValue(i, previousSensorsValue[i], activeSensorsValue[i].getLast(), activeValue, false, false, stateChangeTimeDiff, debug);
         }
 
         previousSensorsValue[i] = activeValue;
       }
-      else if (sensorsStates[i] && activeValue > previousSensorsValue[i])
+      else if (sensorsStates[i] && (activeValue > previousSensorsValue[i]))
       {
+        dumpSensorValue(i, previousSensorsValue[i], activeSensorsValue[i].getLast(), activeValue, true, true, stateChangeTimeDiff, debug);
         // Highest value is the new normal
         previousSensorsValue[i] = activeValue;
       }
-      else if (!sensorsStates[i] && activeValue < previousSensorsValue[i])
+      else if (!sensorsStates[i] && (activeValue < previousSensorsValue[i]))
       {
+        dumpSensorValue(i, previousSensorsValue[i], activeSensorsValue[i].getLast(), activeValue, false, false, stateChangeTimeDiff, debug);
         // Lowest value is the new normal
         previousSensorsValue[i] = activeValue;
+      }
+      else if (sensorsStates[i])
+      {
+        dumpSensorValue(i, previousSensorsValue[i], activeSensorsValue[i].getLast(), activeValue, true, true, stateChangeTimeDiff, displayDebugTick);
       }
     }
     else
@@ -253,18 +256,18 @@ void Faser::readSensors(unsigned long currentTime, bool displayDebugTick)
         updateKeyPress(i, false);
         previousSensorsValue[i] = initialSensitivities[i]; // Reset
 
-        dumpSensorValue(i, activeSensorsValue[i].getLast(), activeValue, true, false, stateChangeTimeDiff, debug);
+        dumpSensorValue(i, previousSensorsValue[i], activeSensorsValue[i].getLast(), activeValue, true, false, stateChangeTimeDiff, debug);
       }
       // Is unpressed, so log only if value is close to limit to avoid flooding
-      else if (activeSensorsValue[i].getLast() > (sensorsSensitivities[i] - sensorSensitivityDebugThreshold))
+      else if (activeSensorsValue[i].getLast() > (previousSensorsValue[i] + sensorsSensitivities[i] - sensorSensitivityDebugThreshold))
       {
-        dumpSensorValue(i, activeSensorsValue[i].getLast(), activeValue, false, false, stateChangeTimeDiff, debug);
+        dumpSensorValue(i, previousSensorsValue[i], activeSensorsValue[i].getLast(), activeValue, false, false, stateChangeTimeDiff, displayDebugTick);
       }
     }
   }
 }
 
-void Faser::dumpSensorValue(int sensorIdx, int rawValue, int smoothedValue, bool oldState, bool newState, unsigned long stateChangeTimeDiff, bool displayDebug)
+void Faser::dumpSensorValue(int sensorIdx, int previousValue, int rawValue, int smoothedValue, bool oldState, bool newState, unsigned long stateChangeTimeDiff, bool displayDebug)
 {
   if (!displayDebug)
   {
@@ -272,8 +275,12 @@ void Faser::dumpSensorValue(int sensorIdx, int rawValue, int smoothedValue, bool
   }
 
   // ensure fixed length of output
+  char initialSensitivityStringBuf[5];
+  sprintf(initialSensitivityStringBuf, "%4d", initialSensitivities[sensorIdx]);
   char sensitivityStringBuf[5];
   sprintf(sensitivityStringBuf, "%4d", sensorsSensitivities[sensorIdx]);
+  char previousValueStringBuf[5];
+  sprintf(previousValueStringBuf, "%4d", previousValue);
   char rawValueStringBuf[5];
   sprintf(rawValueStringBuf, "%4d", rawValue);
   char smoothedValueStringBuf[5];
@@ -282,8 +289,12 @@ void Faser::dumpSensorValue(int sensorIdx, int rawValue, int smoothedValue, bool
   Serial.print("sensor_state|");
   Serial.print("sensor:");
   Serial.print(sensorIdx);
-  Serial.print(";sensitivity:");
+  Serial.print(";initial_sensitivity:");
+  Serial.print(&(initialSensitivityStringBuf[0]));
+  Serial.print(";sensitivity_threshold:");
   Serial.print(&(sensitivityStringBuf[0]));
+  Serial.print(";previous_value:");
+  Serial.print(&(previousValueStringBuf[0]));
   Serial.print(";raw_value:");
   Serial.print(&(rawValueStringBuf[0]));
   Serial.print(";smoothed_value:");
